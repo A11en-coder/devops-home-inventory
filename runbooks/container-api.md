@@ -65,3 +65,18 @@ Invoke-WebRequest http://127.0.0.1:3001/ready
 ```
 
 This does not restart PostgreSQL or prove a database backup exists. To stop the test API later, use `docker stop devops-home-inventory-api`. Remove that API container only when intentionally replacing it; do not remove the database container or named volume as part of API cleanup.
+
+## Try the browser against the API container
+
+The normal Vite development server still targets the Windows API on port 3000. To start a separate local preview that targets the containerized API on port 3001, run this from client/ in a new PowerShell window:
+
+```powershell
+$env:API_PROXY_TARGET = 'http://127.0.0.1:3001'
+try {
+  npm run dev -- --port 5174 --strictPort
+} finally {
+  Remove-Item Env:API_PROXY_TARGET -ErrorAction SilentlyContinue
+}
+```
+
+Open `http://127.0.0.1:5174/`. Its `/api` requests pass through Vite to the API container; the React code stays unchanged. Try a disposable item through Add, Use one, and Delete, then refresh. Stop this Vite preview with Ctrl+C when finished. This preview still runs the frontend on Windows; containerizing the frontend is a later step.

@@ -5,6 +5,20 @@ import { prisma } from "./db";
 const app = express();
 app.use(express.json({ limit: "16kb" }));
 
+app.get("/ready", async (_request, response) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    response.status(200).json({ status: "ready" });
+  } catch (error) {
+    const type = error instanceof Error ? error.name : "UnknownError";
+    const code =
+      typeof error === "object" && error !== null && "code" in error
+        ? String(error.code)
+        : undefined;
+    console.error("GET /ready failed", { type, code });
+    response.status(503).json({ status: "unavailable" });
+  }
+});
 app.get("/items", async (_request, response) => {
   try {
     const items = await prisma.item.findMany({
@@ -116,6 +130,13 @@ app.delete("/items/:id", async (request, response) => {
     response.status(503).json({ error: "Inventory is temporarily unavailable" });
   }
 });
-app.listen(3000, "127.0.0.1", () => {
-  console.info("Inventory API listening on http://127.0.0.1:3000");
+const port = Number(process.env.PORT ?? 3000);
+if (!Number.isInteger(port) || port < 1 || port > 65535) {
+  throw new Error("PORT must be a valid TCP port number");
+}
+
+const host = process.env.HOST ?? "127.0.0.1";
+
+app.listen(port, host, () => {
+  console.info(`Inventory API listening on http://${host}:${port}`);
 });

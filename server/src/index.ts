@@ -95,6 +95,27 @@ app.post("/items/:id/use-one", async (request, response) => {
     response.status(503).json({ error: "Inventory is temporarily unavailable" });
   }
 });
+app.delete("/items/:id", async (request, response) => {
+  const id = request.params.id;
+
+  try {
+    const result = await prisma.item.deleteMany({ where: { id } });
+    if (result.count === 0) {
+      response.status(404).json({ error: "Item not found" });
+      return;
+    }
+
+    response.status(204).end();
+  } catch (error) {
+    const type = error instanceof Error ? error.name : "UnknownError";
+    const code =
+      typeof error === "object" && error !== null && "code" in error
+        ? String(error.code)
+        : undefined;
+    console.error("DELETE /items/:id failed", { type, code });
+    response.status(503).json({ error: "Inventory is temporarily unavailable" });
+  }
+});
 app.listen(3000, "127.0.0.1", () => {
   console.info("Inventory API listening on http://127.0.0.1:3000");
 });

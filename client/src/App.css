@@ -9,11 +9,15 @@
 
 .inventory-header h1 {
   margin: 0 0 0.5rem;
+  display: flex;
+  justify-content: center;
 }
 
 .inventory-header p {
   margin: 0;
   color: #475569;
+  display: flex;
+  justify-content: center;
 }
 
 .item-list {
@@ -186,4 +190,18 @@
     grid-template-columns: 1fr;
     gap: 0;
   }
+}
+
+.item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.item .delete-button {
+  background: #b91c1c;
+}
+
+.item .delete-button:hover:not(:disabled) {
+  background: #991b1b;
 }

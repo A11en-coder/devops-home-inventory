@@ -103,6 +103,7 @@ function App() {
   const [items, setItems] = useState<Item[]>([])
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [pendingId, setPendingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const actionPending = useRef(false)
 
@@ -130,6 +131,37 @@ function App() {
     return () => controller.abort()
   }, [])
 
+  async function handleDelete(item: Item) {
+    if (actionPending.current) return
+
+    actionPending.current = true
+    setDeletingId(item.id)
+    setActionError(null)
+
+    try {
+      const response = await fetch(`/api/items/${encodeURIComponent(item.id)}`, {
+        method: 'DELETE',
+      })
+
+      if (response.status === 404) {
+        setItems((current) => current.filter((saved) => saved.id !== item.id))
+        setActionError(`${item.name} was already removed.`)
+        return
+      }
+
+      if (response.status !== 204) {
+        throw new Error(`Request failed with status ${response.status}`)
+      }
+
+      setItems((current) => current.filter((saved) => saved.id !== item.id))
+    } catch (error) {
+      console.error('Could not delete item', error)
+      setActionError(`Could not delete ${item.name}. Please try again.`)
+    } finally {
+      actionPending.current = false
+      setDeletingId(null)
+    }
+  }
   async function handleUseOne(item: Item) {
     if (actionPending.current || item.quantity === 0) return
 
@@ -176,7 +208,7 @@ function App() {
     <main className="inventory">
       <header className="inventory-header">
         <h1>Home inventory</h1>
-        <p>See what you have in stock.</p>
+        <p>Inspect and track your stocks</p>
       </header>
 
       {status === 'loading' && <p role="status">Loading items…</p>}
@@ -202,14 +234,25 @@ function App() {
                   <span className="stock-warning">Low stock.</span>
                 )}
               </div>
-              <button
-                type="button"
-                aria-label={`Use one ${item.name}`}
-                disabled={item.quantity === 0 || pendingId !== null}
-                onClick={() => void handleUseOne(item)}
-              >
-                {pendingId === item.id ? 'Using…' : 'Use one'}
-              </button>
+              <div className="item-actions">
+                <button
+                  type="button"
+                  aria-label={`Use one ${item.name}`}
+                  disabled={item.quantity === 0 || pendingId !== null || deletingId !== null}
+                  onClick={() => void handleUseOne(item)}
+                >
+                  {pendingId === item.id ? 'Using…' : 'Use one'}
+                </button>
+                <button
+                  type="button"
+                  className="delete-button"
+                  aria-label={`Delete ${item.name}`}
+                  disabled={pendingId !== null || deletingId !== null}
+                  onClick={() => void handleDelete(item)}
+                >
+                  {deletingId === item.id ? 'Deleting…' : 'Delete'}
+                </button>
+              </div>
             </li>
           ))}
         </ul>

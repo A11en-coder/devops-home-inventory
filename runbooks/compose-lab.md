@@ -39,3 +39,7 @@ A 200 from /api/ready means the API can query the database. If the page fails, c
 ```
 
 -Recreate removes and rebuilds only this lab's containers and network, then starts them again. -Stop removes only this lab's containers and network. Both preserve the named volume devops-home-inventory-lab-pgdata. Running the script again starts the lab from that volume. The volume is persistence, not a backup. Do not use `docker compose down -v` unless you intentionally want to erase this lab's database after checking that its data can be discarded.
+
+## Controlled website-stop exercise — 2026-11-10
+
+Scope: isolated Compose lab web container only. Allen ran `docker stop devops-home-inventory-lab-web-1`. Symptom: the browser could not reach 127.0.0.1:8081. Evidence: `docker ps -a --filter name=devops-home-inventory-lab-web-1` showed Exited (0), confirming a normal stop. Cause: the website container was stopped deliberately; the browser port had no serving process. Recovery: Allen ran `docker start devops-home-inventory-lab-web-1` and reported that the page loaded again. Codex independently checked HTTP 200 for / and /api/ready after recovery. Database and API were not intentionally stopped; no saved data was changed. Lesson/prevention: when the page cannot be reached, inspect the web container status before changing configuration; a stopped container can be started without rebuilding it. This demonstrates guided stop/status/start diagnosis for one service, not recovery from an unknown outage.

@@ -11,3 +11,12 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+model Item {
+  id          String   @id @default(uuid())
+  name        String   @unique @db.Citext
+  quantity    Int      @default(0)
+  lowStockThreshold Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

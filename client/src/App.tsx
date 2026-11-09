@@ -1,121 +1,124 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
+import { useEffect, useRef, useState } from 'react'
 import './App.css'
 
+type Item = {
+  id: string
+  name: string
+  quantity: number
+  lowStockThreshold: number
+}
+
 function App() {
-  const [count, setCount] = useState(0)
+  const [items, setItems] = useState<Item[]>([])
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
+  const [pendingId, setPendingId] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const actionPending = useRef(false)
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    async function loadItems() {
+      try {
+        const response = await fetch('/api/items', { signal: controller.signal })
+        if (!response.ok) {
+          throw new Error(`Request failed with status ${response.status}`)
+        }
+
+        const savedItems = (await response.json()) as Item[]
+        setItems(savedItems)
+        setStatus('ready')
+      } catch (error) {
+        if (controller.signal.aborted) return
+        console.error('Could not load inventory', error)
+        setStatus('error')
+      }
+    }
+
+    void loadItems()
+    return () => controller.abort()
+  }, [])
+
+  async function handleUseOne(item: Item) {
+    if (actionPending.current || item.quantity === 0) return
+
+    actionPending.current = true
+    setPendingId(item.id)
+    setActionError(null)
+
+    try {
+      const response = await fetch(`/api/items/${encodeURIComponent(item.id)}/use-one`, {
+        method: 'POST',
+      })
+
+      if (response.status === 409) {
+        setItems((current) => current.map((saved) =>
+          saved.id === item.id ? { ...saved, quantity: 0 } : saved,
+        ))
+        return
+      }
+
+      if (response.status === 404) {
+        setItems((current) => current.filter((saved) => saved.id !== item.id))
+        setActionError(`${item.name} was not found. It has been removed from this list.`)
+        return
+      }
+
+      if (!response.ok) {
+        throw new Error(`Request failed with status ${response.status}`)
+      }
+
+      const updatedItem = (await response.json()) as Item
+      setItems((current) => current.map((saved) =>
+        saved.id === updatedItem.id ? updatedItem : saved,
+      ))
+    } catch (error) {
+      console.error('Could not use item', error)
+      setActionError(`Could not use ${item.name}. Please try again.`)
+    } finally {
+      actionPending.current = false
+      setPendingId(null)
+    }
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <main className="inventory">
+      <header className="inventory-header">
+        <h1>Home inventory</h1>
+        <p>See what you have in stock.</p>
+      </header>
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
+      {status === 'loading' && <p role="status">Loading items…</p>}
+      {status === 'error' && (
+        <p role="alert">Could not load your items. Check that the API is running, then refresh this page.</p>
+      )}
+      {actionError && <p className="action-error" role="alert">{actionError}</p>}
+      {status === 'ready' && items.length === 0 && <p>Your inventory is empty.</p>}
+      {status === 'ready' && items.length > 0 && (
+        <ul className="item-list">
+          {items.map((item) => (
+            <li className="item" key={item.id}>
+              <div className="item-details">
+                <span className="item-name">{item.name}</span>
+                <span className="item-quantity">{item.quantity} in stock</span>
+                {item.quantity === 0 && <span className="stock-warning">Out of stock.</span>}
+                {item.quantity > 0 && item.quantity < item.lowStockThreshold && (
+                  <span className="stock-warning">Low stock.</span>
+                )}
+              </div>
+              <button
+                type="button"
+                aria-label={`Use one ${item.name}`}
+                disabled={item.quantity === 0 || pendingId !== null}
+                onClick={() => void handleUseOne(item)}
+              >
+                {pendingId === item.id ? 'Using…' : 'Use one'}
+              </button>
             </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+          ))}
+        </ul>
+      )}
+    </main>
   )
 }
 

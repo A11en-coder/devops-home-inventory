@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import type { FormEvent } from 'react'
 import './App.css'
 
 type Item = {
@@ -8,6 +9,96 @@ type Item = {
   lowStockThreshold: number
 }
 
+function AddItemForm({ onAdded }: { onAdded: (item: Item) => void }) {
+  const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+  const saving = useRef(false)
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (saving.current) return
+
+    const form = event.currentTarget
+    const fields = new FormData(form)
+    const name = String(fields.get('name') ?? '').trim()
+    const quantityText = String(fields.get('quantity') ?? '').trim()
+    const thresholdText = String(fields.get('lowStockThreshold') ?? '').trim()
+    const quantity = Number(quantityText)
+    const lowStockThreshold = Number(thresholdText)
+    const validCount = (value: number) =>
+      Number.isInteger(value) && value >= 0 && value <= 2_147_483_647
+
+    setError(null)
+    setSuccess(null)
+    if (!name || !quantityText || !thresholdText ||
+        !validCount(quantity) || !validCount(lowStockThreshold)) {
+      setError('Enter a name and nonnegative whole numbers for quantity and threshold.')
+      return
+    }
+
+    saving.current = true
+    setIsSaving(true)
+
+    try {
+      const response = await fetch('/api/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, quantity, lowStockThreshold }),
+      })
+
+      if (response.status === 409) {
+        setError('An item with that name already exists.')
+        return
+      }
+      if (response.status === 400) {
+        setError('Check the name, quantity, and threshold, then try again.')
+        return
+      }
+      if (!response.ok) {
+        throw new Error(`Request failed with status ${response.status}`)
+      }
+
+      const newItem = (await response.json()) as Item
+      onAdded(newItem)
+      form.reset()
+      setSuccess(`${newItem.name} was added.`)
+    } catch (caught) {
+      console.error('Could not add item', caught)
+      setError('Could not add the item. Check that the API is running, then try again.')
+    } finally {
+      saving.current = false
+      setIsSaving(false)
+    }
+  }
+
+  return (
+    <section className="add-item-section" aria-labelledby="add-item-heading">
+      <h2 id="add-item-heading">Add an item</h2>
+      <form className="add-item-form" onSubmit={(event) => void handleSubmit(event)}>
+        <fieldset disabled={isSaving}>
+          <div className="form-field">
+            <label htmlFor="item-name">Name</label>
+            <input id="item-name" name="name" type="text" required />
+          </div>
+          <div className="form-numbers">
+            <div className="form-field">
+              <label htmlFor="item-quantity">Quantity</label>
+              <input id="item-quantity" name="quantity" type="number" min="0" max="2147483647" step="1" defaultValue="0" required />
+            </div>
+            <div className="form-field">
+              <label htmlFor="item-threshold">Low-stock threshold</label>
+              <input id="item-threshold" name="lowStockThreshold" type="number" min="0" max="2147483647" step="1" defaultValue="0" required />
+            </div>
+          </div>
+          <button type="submit">{isSaving ? 'Adding…' : 'Add item'}</button>
+        </fieldset>
+      </form>
+      {error && <p className="form-message form-error" role="alert">{error}</p>}
+      {success && <p className="form-message form-success" role="status">{success}</p>}
+    </section>
+  )
+}
 function App() {
   const [items, setItems] = useState<Item[]>([])
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
@@ -93,6 +184,11 @@ function App() {
         <p role="alert">Could not load your items. Check that the API is running, then refresh this page.</p>
       )}
       {actionError && <p className="action-error" role="alert">{actionError}</p>}
+      {status === 'ready' && (
+        <AddItemForm onAdded={(newItem) => {
+          setItems((current) => [...current, newItem].sort((a, b) => a.name.localeCompare(b.name)))
+        }} />
+      )}
       {status === 'ready' && items.length === 0 && <p>Your inventory is empty.</p>}
       {status === 'ready' && items.length > 0 && (
         <ul className="item-list">

@@ -1,6 +1,6 @@
-# Proposed private cloud launch
+# Private cloud launch
 
-Status: proposal only. No cloud resource created. This is the first supervised Linux VM deployment with synthetic inventory data, not a public production launch.
+Status (2026-11-11): user-reported private Lightsail deployment running with healthy db/API/web, HTTP 200 readiness, SSH tunnel browser access, synthetic item persistence across an ordinary Compose restart, and reboot recovery with Docker startup and tunnel reconnection. This is a supervised lab with synthetic data, not a public production launch. Actual billing and resource ID remain to be checked; the VM continues to incur charges.
 
 ## What the SSH tunnel does
 
@@ -22,7 +22,7 @@ Sources: https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail
 
 ## Deployment sequence after explicit approval
 
-1. Create only the specified Lightsail VM and attach its static IP. Record its owner, region, public IP, resource ID, start time, and observed billing.
+1. Create only the specified Lightsail VM; a static IP was proposed but not attached in the observed lab. Record its owner, region, public IP, resource ID, start time, and observed billing.
 2. Configure the firewall as above and verify SSH access from Windows. The AWS console browser SSH can be a recovery path if Allen's source IP changes.
 3. Install Docker Engine and Compose plugin from Docker's official Ubuntu repository after checking the VM's actual Ubuntu version and existing packages. Verify docker and docker compose versions and the Docker service. Source: https://docs.docker.com/engine/install/ubuntu/
 4. Make a Git archive of committed project files on Windows, verify it excludes .env and deploy.env, transfer it with scp, and extract it into a project directory on the VM. No Git remote currently exists.
@@ -38,3 +38,13 @@ Sources: https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail
 Stop if the actual cost exceeds the agreed ceiling, SSH access cannot be secured, the VM cannot run the stack reliably, or any secret appears in logs/Git. Keep the website private; the app has no authentication. Do not put meaningful personal inventory data on this lab until access control, HTTPS/public exposure design, and an off-machine backup with tested restore are completed.
 
 After the lab, remove the VM, attached static IP, any snapshots, and unused keys/resources deliberately. Deleting the VM also deletes its local Docker database volume; keep no meaningful data there without a verified backup. Confirm the Lightsail billing/resource inventory after cleanup.
+
+## Observed launch and recovery (2026-11-11)
+
+Allen reports Docker Compose v5.7.0, Windows SSH success, source archive transfer and extraction, VM-only deploy.env mode 600, Compose config --quiet success, healthy db/API/web startup, VM-local /api/ready HTTP 200, and browser use through a private SSH tunnel. The transferred archive SHA-256 matched the Windows copy; Git archive metadata identifies source commit ab5465c. No application registry images were pushed or pulled; API and web images were built on the VM. The synthetic Cloud test item was deleted and confirmed absent after refresh. These are user reports, not independent Codex access to the VM.
+
+The first deployed containers had restart policy no. Local compose.private.yaml was updated to restart: unless-stopped on all three services. Allen staged and checked the new file on the VM, saved the old file as compose.private.yaml.before-restart, applied the new file with Compose up --no-build --detach, and reported three running containers with policy unless-stopped. Ubuntu reported Docker enabled at boot. After a controlled VM reboot, the services appeared running without a manual Compose up, and VM-local /api/ready returned 200. The Windows browser could not connect until Allen reopened the SSH tunnel, which reboot had ended. The database volume was retained. If the VM page returns 200 but the Windows browser cannot connect, check that the SSH tunnel is running before changing containers.
+
+A separate Windows SSH timeout occurred when Allen's home public IPv4 changed while the Lightsail SSH firewall still allowed the earlier /32 address. The VM was Running and retained its public IPv4. Allen updated only the SSH source /32 to his current address while retaining Lightsail browser SSH, then reconnected. Do not publish the website, API, or database ports to work around a tunnel or SSH source issue. The instance's dynamic public IPv4 and current home source IP must be checked when connection symptoms recur.
+
+Remaining Stage 4 checks: confirm exact Lightsail resource name/ID and actual account billing, confirm no extra billable resources or public application ports, and record current deployed Compose revision/image IDs. One Lightsail VM continues to incur charges until deliberately cleaned up. No tested off-machine backup, public authentication, HTTPS, or independent recovery is claimed.

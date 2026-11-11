@@ -47,6 +47,7 @@ jobs:
         run: npm run build
 
   images:
+    if: github.event_name == 'pull_request'
     name: Build container images
     needs: check
     runs-on: ubuntu-24.04
@@ -61,3 +62,37 @@ jobs:
 
       - name: Build web image
         run: docker build --tag devops-home-inventory-web:${{ github.sha }} ./client
+
+  publish:
+    name: Publish checked images
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: check
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    env:
+      API_IMAGE: ghcr.io/a11en-coder/devops-home-inventory-api:${{ github.sha }}
+      WEB_IMAGE: ghcr.io/a11en-coder/devops-home-inventory-web:${{ github.sha }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Log in to GitHub Container Registry
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+
+      - name: Build API image
+        run: docker build --label org.opencontainers.image.source=https://github.com/A11en-coder/devops-home-inventory --tag "$API_IMAGE" ./server
+
+      - name: Push API image
+        run: docker push "$API_IMAGE"
+
+      - name: Build web image
+        run: docker build --label org.opencontainers.image.source=https://github.com/A11en-coder/devops-home-inventory --tag "$WEB_IMAGE" ./client
+
+      - name: Push web image
+        run: docker push "$WEB_IMAGE"

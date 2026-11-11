@@ -1,0 +1,49 @@
+# Registry release: same project, network, and database volume as compose.private.yaml.
+# Only API and web image sources differ; digests pin the published build.
+name: devops-home-inventory-private
+
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - lab_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  devops-home-inventory-api:
+    image: ghcr.io/a11en-coder/devops-home-inventory-api@sha256:99b82fdeca0aeecce85122ea45a217f2b09c6abca734c238da81b7786b466afa
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      HOST: 0.0.0.0
+      PORT: "3000"
+    command: ["sh", "-c", "npx prisma migrate deploy && ./node_modules/.bin/tsx src/index.ts"]
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/ready').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  web:
+    image: ghcr.io/a11en-coder/devops-home-inventory-web@sha256:bd4a457c0b4b82ee764185df1142cae2ea9626da426d5f5e21a4517ca0af2d8c
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8084:8080"
+    depends_on:
+      devops-home-inventory-api:
+        condition: service_healthy
+
+volumes:
+  lab_db_data:
+    name: devops-home-inventory-private-pgdata

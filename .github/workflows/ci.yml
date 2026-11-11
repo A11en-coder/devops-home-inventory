@@ -45,3 +45,19 @@ jobs:
       - name: Build web
         working-directory: client
         run: npm run build
+
+  images:
+    name: Build container images
+    needs: check
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Build API image
+        run: docker build --tag devops-home-inventory-api:${{ github.sha }} ./server
+
+      - name: Build web image
+        run: docker build --tag devops-home-inventory-web:${{ github.sha }} ./client

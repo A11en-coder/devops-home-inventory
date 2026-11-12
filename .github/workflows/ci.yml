@@ -61,7 +61,7 @@ jobs:
         run: docker build --tag devops-home-inventory-api:${{ github.sha }} ./server
 
       - name: Build web image
-        run: docker build --tag devops-home-inventory-web:${{ github.sha }} ./client
+        run: docker build --build-arg VITE_RELEASE_SHA="$GITHUB_SHA" --tag devops-home-inventory-web:${{ github.sha }} ./client
 
   publish:
     name: Publish checked images
@@ -92,7 +92,7 @@ jobs:
         run: docker push "$API_IMAGE"
 
       - name: Build web image
-        run: docker build --label org.opencontainers.image.source=https://github.com/A11en-coder/devops-home-inventory --tag "$WEB_IMAGE" ./client
+        run: docker build --build-arg VITE_RELEASE_SHA="$GITHUB_SHA" --label org.opencontainers.image.source=https://github.com/A11en-coder/devops-home-inventory --tag "$WEB_IMAGE" ./client
 
       - name: Push web image
         run: docker push "$WEB_IMAGE"

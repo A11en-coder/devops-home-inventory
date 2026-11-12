@@ -7,6 +7,8 @@ RUN npm ci
 COPY index.html tsconfig.json tsconfig.app.json tsconfig.node.json vite.config.ts ./
 COPY src ./src
 COPY public ./public
+ARG VITE_RELEASE_SHA=local
+ENV VITE_RELEASE_SHA=$VITE_RELEASE_SHA
 RUN npm run build
 
 FROM nginx/nginx-unprivileged:1.30.6-alpine3.24

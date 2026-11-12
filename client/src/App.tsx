@@ -209,6 +209,7 @@ function App() {
       <header className="inventory-header">
         <h1>Home inventory</h1>
         <p>Inspect and track your stocks</p>
+        <p>Release: {(import.meta.env.VITE_RELEASE_SHA || 'local').slice(0, 7)}</p>
       </header>
 
       {status === 'loading' && <p role="status">Loading items…</p>}

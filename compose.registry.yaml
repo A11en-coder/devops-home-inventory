@@ -19,7 +19,7 @@ services:
       retries: 20
 
   devops-home-inventory-api:
-    image: ghcr.io/a11en-coder/devops-home-inventory-api@sha256:f8cd22edbb8e4f0f0cced17f34c70887c92e17a32d1c5bdeab7c86836f7a5bf3
+    image: ghcr.io/a11en-coder/devops-home-inventory-api@sha256:61dcf294c3f7808e8d56b8b8607eb241c7ff77d4836b9331809103ffbee65755
     restart: unless-stopped
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
@@ -36,7 +36,7 @@ services:
       retries: 20
 
   web:
-    image: ghcr.io/a11en-coder/devops-home-inventory-web@sha256:d895f135ff38f0a594f443c8ef63da9eaef50f639ca56ed928cf1423d406880d
+    image: ghcr.io/a11en-coder/devops-home-inventory-web@sha256:f6b530740b64cb48b38687f88baada6a385d91984c6ffc9299999a31b3d3dec0
     restart: unless-stopped
     ports:
       - "127.0.0.1:8084:8080"

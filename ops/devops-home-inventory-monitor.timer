@@ -1,0 +1,10 @@
+[Unit]
+Description=Check home inventory availability every minute
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+Unit=devops-home-inventory-monitor.service
+
+[Install]
+WantedBy=timers.target
